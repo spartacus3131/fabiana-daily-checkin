@@ -78,6 +78,13 @@ export default function ChatPage() {
         recognition.onerror = (event) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
+          if (event.error === 'not-allowed') {
+            alert('Microphone access denied. Please allow microphone access in your browser settings.');
+          } else if (event.error === 'no-speech') {
+            // This is normal - just means no speech was detected
+          } else {
+            alert(`Speech recognition error: ${event.error}`);
+          }
         };
 
         recognition.onend = () => {
@@ -99,9 +106,14 @@ export default function ChatPage() {
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
-      setInput('');
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        setInput('');
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        alert('Failed to start microphone. Please make sure no other app is using it.');
+      }
     }
   }, [isListening]);
 
