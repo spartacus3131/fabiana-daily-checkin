@@ -1,21 +1,41 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Message, DailyEntry } from '@/lib/types';
+import { Message, DailyEntry, CHALLENGES } from '@/lib/types';
 import { loadState, saveEntry, getTodayKey, getEntryForDate, getCurrentChallenge } from '@/lib/storage';
-import { getMorningSystemPrompt, getEveningSystemPrompt } from '@/lib/prompts';
+import { getMorningSystemPrompt, getEveningSystemPrompt, getChallengeConversationPrompt } from '@/lib/prompts';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [checkInType, setCheckInType] = useState<'morning' | 'evening'>('morning');
+  const [checkInType, setCheckInType] = useState<'morning' | 'evening' | 'challenge'>('morning');
   const [hasStarted, setHasStarted] = useState(false);
+  const [challengeNumber, setChallengeNumber] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check for challenge conversation on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const challengeToStart = sessionStorage.getItem('startChallengeConversation');
+      if (challengeToStart) {
+        sessionStorage.removeItem('startChallengeConversation');
+        const num = parseInt(challengeToStart, 10);
+        if (num >= 1 && num <= 22) {
+          setChallengeNumber(num);
+          setCheckInType('challenge');
+          // Auto-start the challenge conversation
+          setTimeout(() => {
+            startChallengeConversation(num);
+          }, 100);
+        }
+      }
+    }
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -42,14 +62,11 @@ export default function ChatPage() {
 
         recognition.onresult = (event) => {
           let finalTranscript = '';
-          let interimTranscript = '';
 
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
               finalTranscript += transcript;
-            } else {
-              interimTranscript += transcript;
             }
           }
 
@@ -89,12 +106,56 @@ export default function ChatPage() {
   }, [isListening]);
 
   const getSystemPrompt = useCallback(() => {
+    if (checkInType === 'challenge' && challengeNumber) {
+      return getChallengeConversationPrompt(challengeNumber);
+    }
     const state = loadState();
     const currentChallenge = getCurrentChallenge(state);
     return checkInType === 'morning'
       ? getMorningSystemPrompt(currentChallenge)
       : getEveningSystemPrompt(currentChallenge);
-  }, [checkInType]);
+  }, [checkInType, challengeNumber]);
+
+  const startChallengeConversation = async (num: number) => {
+    setHasStarted(true);
+    setIsLoading(true);
+    setChallengeNumber(num);
+    setCheckInType('challenge');
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [],
+          systemPrompt: getChallengeConversationPrompt(num),
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to start challenge conversation');
+
+      const data = await response.json();
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date(),
+      };
+
+      setMessages([assistantMessage]);
+    } catch (error) {
+      console.error('Error starting challenge:', error);
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: "Hi! I'm having trouble connecting right now. Please check your connection and try again.",
+        timestamp: new Date(),
+      };
+      setMessages([errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const startCheckIn = useCallback(async () => {
     setHasStarted(true);
@@ -179,23 +240,25 @@ export default function ChatPage() {
       const updatedMessages = [...newMessages, assistantMessage];
       setMessages(updatedMessages);
 
-      // Save entry after each exchange
-      const state = loadState();
-      const todayKey = getTodayKey();
-      const existingEntry = getEntryForDate(state, todayKey, checkInType);
+      // Save entry after each exchange (only for morning/evening check-ins)
+      if (checkInType !== 'challenge') {
+        const state = loadState();
+        const todayKey = getTodayKey();
+        const existingEntry = getEntryForDate(state, todayKey, checkInType as 'morning' | 'evening');
 
-      const entry: DailyEntry = existingEntry || {
-        id: crypto.randomUUID(),
-        date: todayKey,
-        type: checkInType,
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+        const entry: DailyEntry = existingEntry || {
+          id: crypto.randomUUID(),
+          date: todayKey,
+          type: checkInType as 'morning' | 'evening',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
-      entry.messages = updatedMessages;
-      entry.updatedAt = new Date();
-      saveEntry(state, entry);
+        entry.messages = updatedMessages;
+        entry.updatedAt = new Date();
+        saveEntry(state, entry);
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -222,13 +285,21 @@ export default function ChatPage() {
     setMessages([]);
     setHasStarted(false);
     setInput('');
+    setChallengeNumber(null);
+    setCheckInType(new Date().getHours() < 15 ? 'morning' : 'evening');
   };
 
   // Determine time of day for default
   useEffect(() => {
-    const hour = new Date().getHours();
-    setCheckInType(hour < 15 ? 'morning' : 'evening');
+    if (checkInType !== 'challenge') {
+      const hour = new Date().getHours();
+      setCheckInType(hour < 15 ? 'morning' : 'evening');
+    }
   }, []);
+
+  const challengeTitle = challengeNumber
+    ? CHALLENGES.find(c => c.number === challengeNumber)?.title
+    : null;
 
   if (!hasStarted) {
     return (
@@ -285,6 +356,15 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)]">
+      {/* Header for challenge mode */}
+      {checkInType === 'challenge' && challengeTitle && (
+        <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-2">
+          <p className="text-sm text-indigo-600 font-medium text-center">
+            Working through: {challengeTitle}
+          </p>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (

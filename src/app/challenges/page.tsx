@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChallengeProgress, CHALLENGES } from '@/lib/types';
 import { loadState, saveState, updateChallengeProgress } from '@/lib/storage';
+import { getChallengeContent } from '@/lib/challengeContent';
 
 const PART_NAMES: Record<number, string> = {
   1: 'Laying the Groundwork',
@@ -14,6 +16,7 @@ const PART_NAMES: Record<number, string> = {
 };
 
 export default function ChallengesPage() {
+  const router = useRouter();
   const [challenges, setChallenges] = useState<ChallengeProgress[]>([]);
   const [currentChallenge, setCurrentChallenge] = useState(1);
   const [selectedChallenge, setSelectedChallenge] = useState<number | null>(null);
@@ -36,7 +39,16 @@ export default function ChallengesPage() {
     state.currentChallenge = challengeNumber;
     saveState(state);
     setCurrentChallenge(challengeNumber);
-    setSelectedChallenge(null);
+  };
+
+  const handleWorkThrough = (challengeNumber: number) => {
+    // Set as current challenge and navigate to chat
+    const state = loadState();
+    state.currentChallenge = challengeNumber;
+    saveState(state);
+    // Store that we want to start a challenge conversation
+    sessionStorage.setItem('startChallengeConversation', challengeNumber.toString());
+    router.push('/');
   };
 
   const completedCount = challenges.filter(c => c.status === 'completed').length;
@@ -55,11 +67,11 @@ export default function ChallengesPage() {
     ? challenges.find(c => c.challengeNumber === selectedChallenge)
     : null;
 
-  if (selectedChallenge && selectedChallengeData) {
-    const challengeInfo = CHALLENGES.find(c => c.number === selectedChallenge);
+  const selectedContent = selectedChallenge ? getChallengeContent(selectedChallenge) : null;
 
+  if (selectedChallenge && selectedChallengeData && selectedContent) {
     return (
-      <div className="min-h-screen p-4">
+      <div className="min-h-screen p-4 pb-20">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={() => setSelectedChallenge(null)}
@@ -71,15 +83,15 @@ export default function ChallengesPage() {
             Back to all challenges
           </button>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6">
+          <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <span className="text-sm text-gray-500">Challenge {selectedChallenge} of 22</span>
                 <h1 className="text-2xl font-bold text-gray-800 mt-1">
-                  {selectedChallengeData.title}
+                  {selectedContent.title}
                 </h1>
                 <span className="text-sm text-indigo-600">
-                  Part {challengeInfo?.part}: {PART_NAMES[challengeInfo?.part || 1]}
+                  Part {selectedContent.part}: {selectedContent.partName}
                 </span>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -97,14 +109,76 @@ export default function ChallengesPage() {
               </span>
             </div>
 
-            <div className="space-y-4 mt-6">
+            {/* Work Through Button - Primary CTA */}
+            <button
+              onClick={() => handleWorkThrough(selectedChallenge)}
+              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-indigo-700 transition-colors mb-6 flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              Work Through This Challenge
+            </button>
+
+            {/* What You'll Get */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">What You&apos;ll Get</h2>
+              <p className="text-gray-600">{selectedContent.whatYouGet}</p>
+            </div>
+
+            {/* The Challenge */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">The Challenge</h2>
+              <p className="text-gray-700 bg-indigo-50 p-4 rounded-xl">{selectedContent.theChallenge}</p>
+            </div>
+
+            {/* Steps */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Steps</h2>
+              <ol className="space-y-2">
+                {selectedContent.steps.map((step, idx) => (
+                  <li key={idx} className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
+                      {idx + 1}
+                    </span>
+                    <span className="text-gray-600">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Tips */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Tips</h2>
+              <ul className="space-y-2">
+                {selectedContent.tips.map((tip, idx) => (
+                  <li key={idx} className="flex gap-2 text-gray-600">
+                    <span className="text-indigo-500">•</span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Reflection Questions */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Questions to Consider</h2>
+              <ul className="space-y-2 bg-amber-50 p-4 rounded-xl">
+                {selectedContent.questions.map((q, idx) => (
+                  <li key={idx} className="text-gray-700 italic">&ldquo;{q}&rdquo;</li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Status Buttons */}
+            <div className="border-t pt-4 mt-6">
               <div className="flex gap-2">
                 {selectedChallengeData.status !== 'in_progress' && (
                   <button
                     onClick={() => handleStatusChange(selectedChallenge, 'in_progress')}
                     className="flex-1 bg-amber-100 text-amber-700 py-2 px-4 rounded-lg font-medium hover:bg-amber-200 transition-colors"
                   >
-                    Start Challenge
+                    Mark In Progress
                   </button>
                 )}
                 {selectedChallengeData.status !== 'completed' && (
@@ -128,14 +202,14 @@ export default function ChallengesPage() {
               {selectedChallenge !== currentChallenge && (
                 <button
                   onClick={() => handleSetCurrent(selectedChallenge)}
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                  className="w-full mt-2 border border-indigo-600 text-indigo-600 py-2 px-4 rounded-lg font-medium hover:bg-indigo-50 transition-colors"
                 >
                   Set as Current Challenge
                 </button>
               )}
 
               {selectedChallenge === currentChallenge && (
-                <p className="text-center text-indigo-600 font-medium">
+                <p className="text-center text-indigo-600 font-medium mt-2">
                   This is your current challenge
                 </p>
               )}
@@ -180,12 +254,16 @@ export default function ChallengesPage() {
 
           {/* Current challenge */}
           {currentChallenge <= 22 && (
-            <div className="mt-4 bg-indigo-50 rounded-xl p-4">
+            <button
+              onClick={() => setSelectedChallenge(currentChallenge)}
+              className="w-full mt-4 bg-indigo-50 rounded-xl p-4 text-left hover:bg-indigo-100 transition-colors"
+            >
               <p className="text-sm text-indigo-600 font-medium mb-1">Current Challenge</p>
               <p className="text-indigo-800 font-semibold">
                 {challenges.find(c => c.challengeNumber === currentChallenge)?.title}
               </p>
-            </div>
+              <p className="text-sm text-indigo-600 mt-1">Tap to view details →</p>
+            </button>
           )}
         </div>
 
