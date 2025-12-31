@@ -18,14 +18,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
     }
 
+    // If no messages yet, add a starter message to kick off the conversation
+    const apiMessages = messages.length === 0
+      ? [{ role: 'user' as const, content: 'Hello, I\'m ready to begin.' }]
+      : messages.map((m: { role: string; content: string }) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
+      messages: apiMessages,
     });
 
     const textContent = response.content.find(c => c.type === 'text');
