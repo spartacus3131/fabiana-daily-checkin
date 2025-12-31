@@ -123,9 +123,25 @@ export default function ChatPage() {
     }
     const state = loadState();
     const currentChallenge = getCurrentChallenge(state);
+
+    // Check if hotspot challenge (14) is complete
+    const hotspotChallenge = state.challenges.find(c => c.challengeNumber === 14);
+    const hotspotComplete = hotspotChallenge?.status === 'completed';
+
+    // Check if it's start of week (Sunday or Monday) for morning, or end of week (Friday/Saturday) for evening
+    const dayOfWeek = new Date().getDay();
+    const isStartOfWeek = checkInType === 'morning' && (dayOfWeek === 0 || dayOfWeek === 1); // Sun or Mon
+    const isEndOfWeek = checkInType === 'evening' && (dayOfWeek === 5 || dayOfWeek === 6); // Fri or Sat
+
+    const options = {
+      currentChallenge,
+      hotspotComplete,
+      isStartOfWeek: isStartOfWeek || isEndOfWeek,
+    };
+
     return checkInType === 'morning'
-      ? getMorningSystemPrompt(currentChallenge)
-      : getEveningSystemPrompt(currentChallenge);
+      ? getMorningSystemPrompt(options)
+      : getEveningSystemPrompt(options);
   }, [checkInType, challengeNumber]);
 
   const startChallengeConversation = async (num: number) => {
