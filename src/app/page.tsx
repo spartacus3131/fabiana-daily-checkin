@@ -132,9 +132,12 @@ export default function ChatPage() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to start challenge conversation');
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start challenge conversation');
+      }
+
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -145,10 +148,11 @@ export default function ChatPage() {
       setMessages([assistantMessage]);
     } catch (error) {
       console.error('Error starting challenge:', error);
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "Hi! I'm having trouble connecting right now. Please check your connection and try again.",
+        content: `Connection error: ${errMsg}`,
         timestamp: new Date(),
       };
       setMessages([errorMessage]);
