@@ -23,6 +23,9 @@ export function NavLinks() {
       >
         Chat
       </Link>
+      <Link href="/goals" className="text-gray-600 hover:text-indigo-600 text-sm">
+        Goals
+      </Link>
       <Link href="/review" className="text-gray-600 hover:text-indigo-600 text-sm">
         Review
       </Link>

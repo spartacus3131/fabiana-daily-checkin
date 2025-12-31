@@ -1,13 +1,15 @@
-import { ChallengeProgress, CHALLENGES } from './types';
+import { ChallengeProgress, CHALLENGES, WeeklyGoal, ParkingLotItem } from './types';
 
 interface PromptOptions {
   currentChallenge?: ChallengeProgress;
   hotspotComplete?: boolean;
   isStartOfWeek?: boolean;
+  weeklyGoals?: WeeklyGoal[];
+  parkingLotItems?: ParkingLotItem[];
 }
 
 export function getMorningSystemPrompt(options: PromptOptions = {}): string {
-  const { currentChallenge, hotspotComplete, isStartOfWeek } = options;
+  const { currentChallenge, hotspotComplete, isStartOfWeek, weeklyGoals, parkingLotItems } = options;
 
   const challengeInfo = currentChallenge
     ? `\n\nCURRENT CHALLENGE: ${currentChallenge.title} (Challenge ${currentChallenge.challengeNumber} of 22)
@@ -25,6 +27,20 @@ Since they've completed the Hotspot Challenge, briefly check in on their 7 life 
 - Relationships (family, friends, community)
 - Fun (hobbies, joy, play)
 Ask: "It's a new week - which of your life hotspots needs the most attention this week?" Help them set one intention for that area.`
+    : '';
+
+  // Format current weekly goals for context
+  const goalsContext = weeklyGoals && weeklyGoals.length > 0
+    ? `\n\nCURRENT WEEKLY GOALS (stored from previous conversations):
+${weeklyGoals.map(g => `- ${g.text} [${g.status}]`).join('\n')}
+Reference these when checking in on weekly goals progress.`
+    : '\n\nNo weekly goals set yet - help them set 2-3 goals for this week during the check-in.';
+
+  // Format parking lot items for context
+  const parkingLotContext = parkingLotItems && parkingLotItems.length > 0
+    ? `\n\nPARKING LOT (items deferred from previous sessions):
+${parkingLotItems.map(item => `- ${item.text}`).join('\n')}
+Ask if any of these should become a priority today, or if they're ready to be resolved.`
     : '';
 
   return `You are a warm, supportive productivity coach having a morning check-in conversation. You help people start their day with clarity and intention.
@@ -58,7 +74,7 @@ GUIDELINES:
 - Help distinguish between what's urgent vs what's truly important
 - If they mention feeling overwhelmed, help them simplify
 - The parking lot is for capturing things to revisit later - not today's focus
-- Keep the tone light but purposeful${challengeInfo}
+- Keep the tone light but purposeful${challengeInfo}${goalsContext}${parkingLotContext}
 
 After 5-7 exchanges, when you sense the check-in is wrapping up, summarize:
 - Their weekly goals (current status)
@@ -70,13 +86,27 @@ End with encouragement for their day.`;
 }
 
 export function getEveningSystemPrompt(options: PromptOptions = {}): string {
-  const { hotspotComplete, isStartOfWeek } = options;
+  const { hotspotComplete, isStartOfWeek, weeklyGoals, parkingLotItems } = options;
 
   const hotspotSection = hotspotComplete && isStartOfWeek
     ? `\n\nWEEKLY HOTSPOT REFLECTION (do this at the end of the week):
 Since they've completed the Hotspot Challenge, briefly reflect on their 7 life areas:
 - Mind, Body, Emotions, Career, Finances, Relationships, Fun
 Ask: "Looking back at this week, which hotspot got the attention it needed? Which one is calling for more focus next week?"`
+    : '';
+
+  // Format current weekly goals for context
+  const goalsContext = weeklyGoals && weeklyGoals.length > 0
+    ? `\n\nCURRENT WEEKLY GOALS (stored from previous conversations):
+${weeklyGoals.map(g => `- ${g.text} [${g.status}]`).join('\n')}
+Reference these when checking weekly goals progress.`
+    : '';
+
+  // Format parking lot items for context
+  const parkingLotContext = parkingLotItems && parkingLotItems.length > 0
+    ? `\n\nPARKING LOT (items deferred from previous sessions):
+${parkingLotItems.map(item => `- ${item.text}`).join('\n')}
+Ask if any should be added, promoted to priority, or resolved.`
     : '';
 
   return `You are a warm, supportive productivity coach having an evening reflection conversation. You help people close their day with gratitude and insight.
@@ -114,7 +144,7 @@ GUIDELINES:
 - Gratitude should feel natural, not forced
 - The parking lot helps capture things without pressure
 - End on a positive, restful note
-- Keep responses concise but warm
+- Keep responses concise but warm${goalsContext}${parkingLotContext}
 
 After 5-7 exchanges, when you sense the reflection is complete, summarize:
 - What they accomplished (celebrating wins!)

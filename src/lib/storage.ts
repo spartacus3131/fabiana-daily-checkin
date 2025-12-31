@@ -1,6 +1,6 @@
 'use client';
 
-import { DailyEntry, ChallengeProgress, UserState, CHALLENGES } from './types';
+import { DailyEntry, ChallengeProgress, UserState, CHALLENGES, WeeklyGoal, ParkingLotItem } from './types';
 
 const STORAGE_KEY = 'fabiana_productivity';
 
@@ -13,7 +13,18 @@ function getDefaultState(): UserState {
       status: 'not_started' as const,
     })),
     entries: [],
+    weeklyGoals: [],
+    parkingLot: [],
   };
+}
+
+// Get the Monday of the current week
+export function getCurrentWeekMonday(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  const monday = new Date(now.setDate(diff));
+  return monday.toISOString().split('T')[0];
 }
 
 export function loadState(): UserState {
@@ -35,6 +46,10 @@ export function loadState(): UserState {
         };
       });
     }
+    // Ensure weeklyGoals and parkingLot exist
+    if (!parsed.weeklyGoals) parsed.weeklyGoals = [];
+    if (!parsed.parkingLot) parsed.parkingLot = [];
+
     return parsed;
   } catch {
     return getDefaultState();
@@ -98,4 +113,91 @@ export function updateChallengeProgress(
 
 export function getCurrentChallenge(state: UserState): ChallengeProgress | undefined {
   return state.challenges.find(c => c.challengeNumber === state.currentChallenge);
+}
+
+// Weekly Goals functions
+export function getCurrentWeekGoals(state: UserState): WeeklyGoal[] {
+  const currentWeek = getCurrentWeekMonday();
+  return state.weeklyGoals.filter(g => g.weekOf === currentWeek);
+}
+
+export function addWeeklyGoal(state: UserState, text: string): UserState {
+  const goal: WeeklyGoal = {
+    id: crypto.randomUUID(),
+    text,
+    status: 'pending',
+    weekOf: getCurrentWeekMonday(),
+    createdAt: new Date(),
+  };
+  state.weeklyGoals.push(goal);
+  saveState(state);
+  return state;
+}
+
+export function updateWeeklyGoal(
+  state: UserState,
+  goalId: string,
+  updates: Partial<Pick<WeeklyGoal, 'text' | 'status'>>
+): UserState {
+  const goal = state.weeklyGoals.find(g => g.id === goalId);
+  if (goal) {
+    if (updates.text) goal.text = updates.text;
+    if (updates.status) {
+      goal.status = updates.status;
+      if (updates.status === 'completed') {
+        goal.completedAt = new Date();
+      }
+    }
+    saveState(state);
+  }
+  return state;
+}
+
+export function deleteWeeklyGoal(state: UserState, goalId: string): UserState {
+  state.weeklyGoals = state.weeklyGoals.filter(g => g.id !== goalId);
+  saveState(state);
+  return state;
+}
+
+// Parking Lot functions
+export function getActiveParkingLotItems(state: UserState): ParkingLotItem[] {
+  return state.parkingLot.filter(item => !item.resolved && !item.promoted);
+}
+
+export function addParkingLotItem(state: UserState, text: string, source?: string): UserState {
+  const item: ParkingLotItem = {
+    id: crypto.randomUUID(),
+    text,
+    addedAt: new Date(),
+    source,
+  };
+  state.parkingLot.push(item);
+  saveState(state);
+  return state;
+}
+
+export function promoteParkingLotItem(state: UserState, itemId: string): UserState {
+  const item = state.parkingLot.find(i => i.id === itemId);
+  if (item) {
+    item.promoted = true;
+    item.promotedAt = new Date();
+    saveState(state);
+  }
+  return state;
+}
+
+export function resolveParkingLotItem(state: UserState, itemId: string): UserState {
+  const item = state.parkingLot.find(i => i.id === itemId);
+  if (item) {
+    item.resolved = true;
+    item.resolvedAt = new Date();
+    saveState(state);
+  }
+  return state;
+}
+
+export function deleteParkingLotItem(state: UserState, itemId: string): UserState {
+  state.parkingLot = state.parkingLot.filter(i => i.id !== itemId);
+  saveState(state);
+  return state;
 }

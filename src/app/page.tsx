@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Message, DailyEntry, CHALLENGES } from '@/lib/types';
-import { loadState, saveEntry, getTodayKey, getEntryForDate, getCurrentChallenge } from '@/lib/storage';
+import { loadState, saveEntry, getTodayKey, getEntryForDate, getCurrentChallenge, getCurrentWeekGoals, getActiveParkingLotItems } from '@/lib/storage';
 import { getMorningSystemPrompt, getEveningSystemPrompt, getChallengeConversationPrompt } from '@/lib/prompts';
 
 export default function ChatPage() {
@@ -133,10 +133,16 @@ export default function ChatPage() {
     const isStartOfWeek = checkInType === 'morning' && (dayOfWeek === 0 || dayOfWeek === 1); // Sun or Mon
     const isEndOfWeek = checkInType === 'evening' && (dayOfWeek === 5 || dayOfWeek === 6); // Fri or Sat
 
+    // Get current weekly goals and parking lot items
+    const weeklyGoals = getCurrentWeekGoals(state);
+    const parkingLotItems = getActiveParkingLotItems(state);
+
     const options = {
       currentChallenge,
       hotspotComplete,
       isStartOfWeek: isStartOfWeek || isEndOfWeek,
+      weeklyGoals,
+      parkingLotItems,
     };
 
     return checkInType === 'morning'

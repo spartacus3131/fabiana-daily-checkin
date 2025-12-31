@@ -5,6 +5,26 @@ export interface Message {
   timestamp: Date;
 }
 
+export interface WeeklyGoal {
+  id: string;
+  text: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  weekOf: string; // YYYY-MM-DD of the Monday of that week
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface ParkingLotItem {
+  id: string;
+  text: string;
+  addedAt: Date;
+  source?: string; // e.g., "morning check-in 2024-01-15"
+  promoted?: boolean; // if it became a priority
+  promotedAt?: Date;
+  resolved?: boolean;
+  resolvedAt?: Date;
+}
+
 export interface DailyEntry {
   id: string;
   date: string; // YYYY-MM-DD
@@ -34,6 +54,8 @@ export interface UserState {
   currentChallenge: number;
   challenges: ChallengeProgress[];
   entries: DailyEntry[];
+  weeklyGoals: WeeklyGoal[];
+  parkingLot: ParkingLotItem[];
 }
 
 export const CHALLENGES = [
