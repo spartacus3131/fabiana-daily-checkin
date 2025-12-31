@@ -57,9 +57,15 @@ export default function ReviewPage() {
               <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
                 selectedEntry.type === 'morning'
                   ? 'bg-amber-100 text-amber-700'
-                  : 'bg-indigo-100 text-indigo-700'
+                  : selectedEntry.type === 'evening'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-purple-100 text-purple-700'
               }`}>
-                {selectedEntry.type === 'morning' ? 'Morning Check-in' : 'Evening Reflection'}
+                {selectedEntry.type === 'morning'
+                  ? 'Morning Check-in'
+                  : selectedEntry.type === 'evening'
+                    ? 'Evening Reflection'
+                    : `Challenge: ${selectedEntry.challengeTitle || `#${selectedEntry.challengeNumber}`}`}
               </span>
             </div>
 
@@ -121,21 +127,31 @@ export default function ReviewPage() {
                           <span className={`w-10 h-10 rounded-full flex items-center justify-center ${
                             entry.type === 'morning'
                               ? 'bg-amber-100 text-amber-600'
-                              : 'bg-indigo-100 text-indigo-600'
+                              : entry.type === 'evening'
+                                ? 'bg-indigo-100 text-indigo-600'
+                                : 'bg-purple-100 text-purple-600'
                           }`}>
                             {entry.type === 'morning' ? (
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                               </svg>
-                            ) : (
+                            ) : entry.type === 'evening' ? (
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             )}
                           </span>
                           <div>
                             <p className="font-medium text-gray-800">
-                              {entry.type === 'morning' ? 'Morning Check-in' : 'Evening Reflection'}
+                              {entry.type === 'morning'
+                                ? 'Morning Check-in'
+                                : entry.type === 'evening'
+                                  ? 'Evening Reflection'
+                                  : entry.challengeTitle || `Challenge #${entry.challengeNumber}`}
                             </p>
                             <p className="text-sm text-gray-500">
                               {entry.messages.length} messages

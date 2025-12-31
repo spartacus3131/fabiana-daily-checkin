@@ -69,6 +69,16 @@ export function getEntryForDate(state: UserState, date: string, type: 'morning' 
   return state.entries.find(e => e.date === date && e.type === type);
 }
 
+export function getChallengeEntry(state: UserState, date: string, challengeNumber: number): DailyEntry | undefined {
+  return state.entries.find(e => e.date === date && e.type === 'challenge' && e.challengeNumber === challengeNumber);
+}
+
+export function getAllChallengeEntries(state: UserState): DailyEntry[] {
+  return state.entries.filter(e => e.type === 'challenge').sort((a, b) =>
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+}
+
 export function saveEntry(state: UserState, entry: DailyEntry): UserState {
   const existingIndex = state.entries.findIndex(e => e.id === entry.id);
   if (existingIndex >= 0) {

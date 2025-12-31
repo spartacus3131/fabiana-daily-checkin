@@ -28,7 +28,9 @@ export interface ParkingLotItem {
 export interface DailyEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  type: 'morning' | 'evening';
+  type: 'morning' | 'evening' | 'challenge';
+  challengeNumber?: number; // Only for type: 'challenge'
+  challengeTitle?: string; // Only for type: 'challenge'
   messages: Message[];
   summary?: {
     brainDump?: string;

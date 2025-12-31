@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Message, DailyEntry, CHALLENGES } from '@/lib/types';
-import { loadState, saveEntry, getTodayKey, getEntryForDate, getCurrentChallenge, getCurrentWeekGoals, getActiveParkingLotItems } from '@/lib/storage';
+import { loadState, saveEntry, getTodayKey, getEntryForDate, getChallengeEntry, getCurrentChallenge, getCurrentWeekGoals, getActiveParkingLotItems } from '@/lib/storage';
 import { getMorningSystemPrompt, getEveningSystemPrompt, getChallengeConversationPrompt } from '@/lib/prompts';
 
 export default function ChatPage() {
@@ -180,6 +180,22 @@ export default function ChatPage() {
       };
 
       setMessages([assistantMessage]);
+
+      // Save the challenge conversation entry
+      const state = loadState();
+      const todayKey = getTodayKey();
+      const challenge = CHALLENGES.find(c => c.number === num);
+      const entry: DailyEntry = {
+        id: crypto.randomUUID(),
+        date: todayKey,
+        type: 'challenge',
+        challengeNumber: num,
+        challengeTitle: challenge?.title,
+        messages: [assistantMessage],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      saveEntry(state, entry);
     } catch (error) {
       console.error('Error starting challenge:', error);
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -278,10 +294,31 @@ export default function ChatPage() {
       const updatedMessages = [...newMessages, assistantMessage];
       setMessages(updatedMessages);
 
-      // Save entry after each exchange (only for morning/evening check-ins)
-      if (checkInType !== 'challenge') {
-        const state = loadState();
-        const todayKey = getTodayKey();
+      // Save entry after each exchange
+      const state = loadState();
+      const todayKey = getTodayKey();
+
+      if (checkInType === 'challenge' && challengeNumber) {
+        // Save challenge conversation
+        const existingEntry = getChallengeEntry(state, todayKey, challengeNumber);
+        const challenge = CHALLENGES.find(c => c.number === challengeNumber);
+
+        const entry: DailyEntry = existingEntry || {
+          id: crypto.randomUUID(),
+          date: todayKey,
+          type: 'challenge',
+          challengeNumber,
+          challengeTitle: challenge?.title,
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        entry.messages = updatedMessages;
+        entry.updatedAt = new Date();
+        saveEntry(state, entry);
+      } else {
+        // Save morning/evening check-in
         const existingEntry = getEntryForDate(state, todayKey, checkInType as 'morning' | 'evening');
 
         const entry: DailyEntry = existingEntry || {
